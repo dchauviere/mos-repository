@@ -9,9 +9,6 @@ services:
     secrets:
       - source: postgres-passwd
         target: postgres-passwd
-        uid: '0'
-        gid: '0'
-        mode: 0400
     volumes:
       - database:/var/lib/postgresql/data
     healthcheck:

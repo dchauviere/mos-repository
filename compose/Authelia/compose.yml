@@ -27,8 +27,6 @@ services:
     configs:
       - source: 'authelia'
         target: '/config/configuration.yml'
-      - source: 'users'
-        target: '/config/users_database.yml'
     secrets:
       - source: 'authelia-db-user-password'
         target: 'authelia-db-user-password'
@@ -38,6 +36,8 @@ services:
         target: 'authelia_session_secret'
       - source: 'authelia-encryption-key'
         target: 'authelia-encryption-key'
+      - source: 'authelia-users-database'
+        target: 'authelia-users-database'
     labels:
       traefik.enable: 'true'
       traefik.http.routers.authelia.rule: 'Host(`auth.${DOMAIN}`)'
