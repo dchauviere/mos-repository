@@ -1,0 +1,21 @@
+services:
+  vaultwarden:
+    image: vaultwarden/server:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://vaultwarden:${VAULTWARDEN_DB_PASSWORD:?set VAULTWARDEN_DB_PASSWORD}@postgres:5432/vaultwarden
+      DOMAIN: "https://coffre.dean-chauviere.net"
+      SIGNUPS_ALLOWED: "true"
+      HIBP_API_KEY: ${HIBP_API_KEY:?set HIBP_API_KEY}
+      ADMIN_TOKEN: ${VAULTWARDEN_ADMIN_TOKEN:?set VAULTWARDEN_ADMIN_TOKEN}
+      # SMTP_HOST: smtp.domain.tld
+      # SMTP_FROM: vaultwarden@domain.tld
+      # SMTP_FROM_NAME: Vaultwarden
+      # SMTP_USERNAME: username
+      # SMTP_PASSWORD: password
+      # SMTP_TIMEOUT: 15
+      # SMTP_SECURITY: starttls | force_tls
+
+volumes:

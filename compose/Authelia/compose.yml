@@ -1,0 +1,159 @@
+services:
+  authelia:
+    image: 'authelia/authelia'
+    container_name: 'authelia'
+    depends_on:
+      authelia-init:
+        condition: service_completed_successfully
+    networks:
+      services: {}
+      database: {}
+    volumes:
+      - 'authelia:/data'
+    environment:
+      TZ: 'Europe/Paris'
+      AUTHELIA_SESSION_SECRET_FILE: /run/secrets/authelia_session_secret
+      AUTHELIA_JWT_SECRET_FILE: /run/secrets/authelia_jwt_secret
+      AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET_FILE: /run/secrets/authelia_jwt_secret
+      AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE: /run/secrets/authelia-encryption-key
+      AUTHELIA_STORAGE_POSTGRES_PASSWORD_FILE: /run/secrets/authelia-db-user-password
+      AUTHELIA_AUTHENTICATION_BACKEND_FILE_PATH: /run/secrets/authelia-users-database
+      AUTHELIA_STORAGE_POSTGRES_ADDRESS: tcp://postgres.database:5432
+      AUTHELIA_STORAGE_POSTGRES_DATABASE: authelia
+      AUTHELIA_STORAGE_POSTGRES_SCHEMA: public
+      AUTHELIA_STORAGE_POSTGRES_USERNAME: ${AUTHELIA_DB_USER:-authelia}
+      AUTHELIA_SERVER_ADDRESS: 'tcp://:9091'
+      AUTHELIA_LOG_LEVEL: 'info'
+    configs:
+      - source: 'authelia'
+        target: '/config/configuration.yml'
+      - source: 'users'
+        target: '/config/users_database.yml'
+    secrets:
+      - source: 'authelia-db-user-password'
+        target: 'authelia-db-user-password'
+      - source: 'authelia_jwt_secret'
+        target: 'authelia_jwt_secret'
+      - source: 'authelia_session_secret'
+        target: 'authelia_session_secret'
+      - source: 'authelia-encryption-key'
+        target: 'authelia-encryption-key'
+    labels:
+      traefik.enable: 'true'
+      traefik.http.routers.authelia.rule: 'Host(`auth.${DOMAIN}`)'
+      traefik.http.routers.authelia.entrypoints: 'websecure'
+      traefik.http.routers.authelia.tls: 'true'
+      traefik.http.services.authelia.loadbalancer.server.port: '9091'
+      traefik.http.routers.authelia.tls.certresolver: 'ovhresolver'
+      traefik.http.middlewares.authelia.forwardAuth.address: 'http://authelia:9091/api/authz/forward-auth'  # yamllint disable-line rule:line-length
+      traefik.http.middlewares.authelia.forwardAuth.trustForwardHeader: 'true'
+      traefik.http.middlewares.authelia.forwardAuth.maxResponseBodySize: '8192'
+      traefik.http.middlewares.authelia.forwardAuth.authResponseHeaders: 'Remote-User,Remote-Groups,Remote-Name,Remote-Email'  # yamllint disable-line rule:line-length
+    restart: 'unless-stopped'
+    #healthcheck:
+      ## In production the healthcheck section should be commented.
+      #disable: true
+
+  authelia-init:
+    image: 'postgres:17'
+    restart: 'no'
+    environment:
+      POSTGRES_PASSWORD_FILE: '/run/secrets/postgres-passwd'
+      AUTHELIA_DB_USER: '${DB_USER:-authelia}'
+      AUTHELIA_DB_PASSWORD_FILE: /run/secrets/authelia-db-user-password
+    secrets:
+      - source: 'postgres-passwd'
+        target: 'postgres-passwd'
+      - source: 'authelia-db-user-password'
+        target: 'authelia-db-user-password'
+    volumes:
+      - './setup-database.sh:/opt/setup-database.sh:ro'
+    command: 
+      - sh
+      - -ec
+      - |
+        PGPASSWORD="$(cat "$$POSTGRES_PASSWORD_FILE")"
+        export PGPASSWORD
+
+        until pg_isready -h postgres.database -U postgres -d postgres; do
+          sleep 1
+        done
+
+        psql -h postgres.database --username postgres --dbname postgres \
+          --set=ON_ERROR_STOP=1 \
+          --set=authelia_db_user="$$AUTHELIA_DB_USER" \
+          --set=authelia_db_password="$(cat "$$AUTHELIA_DB_PASSWORD_FILE")" <<'SQL'
+        \set QUIET 1
+        SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'authelia_db_user', :'authelia_db_password')
+        WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'authelia_db_user')
+        \gexec
+        SELECT format('ALTER ROLE %I LOGIN PASSWORD %L', :'authelia_db_user', :'authelia_db_password')
+        \gexec
+
+        SELECT format('CREATE DATABASE %I OWNER %I', :'authelia_db_user', :'authelia_db_user')
+        WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = :'authelia_db_user')
+        \gexec
+        SELECT format('ALTER DATABASE %I OWNER TO %I', :'authelia_db_user', :'authelia_db_user')
+        \gexec
+        SQL
+    networks:
+      database: {}
+
+networks:
+  services:
+    external: true
+  database:
+    external: true
+
+configs:
+  authelia:
+    content: |
+      authentication_backend:
+        file:
+          password:
+            algorithm: 'argon2'
+            argon2:
+              variant: 'argon2id'
+              iterations: 3
+              memory: 65536
+              parallelism: 4
+              key_length: 32
+              salt_length: 16
+      access_control:
+        default_policy: 'deny'
+        rules:
+          - domain: 'traefik.${DOMAIN}'
+            policy: 'one_factor'
+      session:
+        cookies:
+          - name: 'authelia_session'
+            domain: '${DOMAIN}'  # Should match whatever your root protected domain is
+            authelia_url: 'https://auth.${DOMAIN}'
+            expiration: '1 hour'
+            inactivity: '5 minutes'
+      
+      regulation:
+        max_retries: 3
+        find_time: '2 minutes'
+        ban_time: '5 minutes'
+
+      notifier:
+        filesystem:
+          filename: '/config/notification.txt'
+
+secrets:
+  postgres-passwd:
+    file: '/mnt/MyData/secrets/postgres-passwd.txt'
+  authelia-db-user-password:
+    file: '/mnt/MyData/secrets/authelia-db-user-password.txt'
+  authelia_jwt_secret:
+    file: '/mnt/MyData/secrets/authelia-jwt-secret.txt'
+  authelia_session_secret:
+    file: '/mnt/MyData/secrets/authelia-session-secret.txt'
+  authelia-encryption-key:
+    file: '/mnt/MyData/secrets/authelia-encryption-key.txt'
+  authelia-users-database:
+    file: '/mnt/MyData/secrets/authelia-users-database.yml'
+
+volumes:
+  authelia:

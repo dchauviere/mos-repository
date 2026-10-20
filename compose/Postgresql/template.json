@@ -1,0 +1,8 @@
+{
+  "name": "Postgresql",
+  "description": "PostgreSQL is a powerful, open source object-relational database system.",
+  "icon": "https://raw.githubusercontent.com/docker-library/docs/refs/heads/master/postgres/logo.png",
+  "webui": "https://{IP}",
+  "category": [ "Database" ],
+  "readme_url": "https://www.postgresql.org/docs/"
+}

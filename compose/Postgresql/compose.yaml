@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      TZ: Europe/Paris
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres-passwd
+    secrets:
+      - source: postgres-passwd
+        target: postgres-passwd
+        uid: '0'
+        gid: '0'
+        mode: 0400
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U postgres -d postgres
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks:
+      database:
+
+volumes:
+  database:
+
+networks:
+  database:
+    name: database
+
+secrets:
+  postgres-passwd:
+    file: /mnt/MyData/secrets/postgres-passwd.txt

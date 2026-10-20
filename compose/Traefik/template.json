@@ -1,0 +1,8 @@
+{
+  "name": "Traefik",
+  "description": "For ingress routing and reverse proxying, Traefik is a modern HTTP reverse proxy and load balancer that makes deploying microservices easy.",
+  "icon": "https://raw.githubusercontent.com/traefik/traefik/refs/heads/master/docs/content/assets/img/traefikproxy-icon-color.png",
+  "webui": "https://{IP}",
+  "category": [ "Network" ],
+  "readme_url": "https://doc.traefik.io/traefik/"
+}
