@@ -1,0 +1,8 @@
+{
+  "name": "Vaultwarden",
+  "description": "A self-hosted password manager for secure password storage and management.",
+  "icon": "https://raw.githubusercontent.com/dchauviere/mos-repository/main/icons/vaultwarden.png",
+  "webui": "https://{IP}",
+  "category": [ "Security" ],
+  "readme_url": "https://github.com/dchauviere/mos-repository/blob/main/compose/Vaultwarden/README.md"
+}

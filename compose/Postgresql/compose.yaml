@@ -10,7 +10,7 @@ services:
       - source: postgres-passwd
         target: postgres-passwd
     volumes:
-      - database:/var/lib/postgresql/data
+      - ./database-data:/var/lib/postgresql/data
     healthcheck:
       test:
         - CMD-SHELL
@@ -21,9 +21,6 @@ services:
       start_period: 10s
     networks:
       database:
-
-volumes:
-  database:
 
 networks:
   database:

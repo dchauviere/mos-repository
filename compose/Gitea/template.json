@@ -1,0 +1,8 @@
+{
+  "name": "Gitea",
+  "description": "A self-hosted Git service.",
+  "icon": "https://raw.githubusercontent.com/dchauviere/mos-repository/main/icons/gitea.png",
+  "webui": "https://{IP}",
+  "category": [ "Development" ],
+  "readme_url": "https://github.com/dchauviere/mos-repository/blob/main/compose/Gitea/README.md"
+}

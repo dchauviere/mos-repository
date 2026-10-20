@@ -1,26 +1,83 @@
-volumes:
-  nextcloud:
-  redis:
-
 services:
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD} --save 60 1 
-    volumes:
-      - redis:/data
-
   nextcloud:
     image: nextcloud:latest
-    depends_on:
-      postgres:
-        condition: service_healthy
     volumes:
-      - nextcloud:/var/www/html
+      - ./nextcloud-data:/var/www/html
     environment:
-      POSTGRES_HOST: postgres
+      POSTGRES_HOST: postgres.database
       POSTGRES_DB: nextcloud
-      POSTGRES_USER: nextcloud
-      POSTGRES_PASSWORD: ${NEXTCLOUD_DB_PASSWORD:?set NEXTCLOUD_DB_PASSWORD}
-      REDIS_HOST: redis
-      REDIS_HOST_PASSWORD: ${REDIS_PASSWORD}
+      POSTGRES_USER: '${DB_USER:-nextcloud}'
+      POSTGRES_PASSWORD_FILE: /run/secrets/nextcloud-db-password
+      NEXTCLOUD_ADMIN_USER: admin
+      NEXTCLOUD_ADMIN_PASSWORD_FILE: /run/secrets/nextcloud-admin-password
+      NEXTCLOUD_TRUSTED_DOMAINS: 'nextcloud.${DOMAIN}'
+    labels:
+      traefik.enable: 'true'
+      traefik.http.routers.nextcloud.rule: 'Host(`nextcloud.${DOMAIN}`)'
+      traefik.http.routers.nextcloud.entrypoints: 'websecure'
+      traefik.http.routers.nextcloud.tls: 'true'
+      traefik.http.services.nextcloud.loadbalancer.server.port: '80'
+      traefik.http.routers.nextcloud.tls.certresolver: 'ovhresolver'
+    secrets:
+      - source: 'nextcloud-db-password'
+      - source: 'nextcloud-admin-password'
+    networks:
+      - services
+      - database
+
+  nextcloud-init:
+    image: 'postgres:17'
+    restart: 'no'
+    environment:
+      POSTGRES_PASSWORD_FILE: '/run/secrets/postgres-passwd'
+      NEXTCLOUD_DB_USER: '${DB_USER:-nextcloud}'
+      NEXTCLOUD_DB_PASSWORD_FILE: /run/secrets/nextcloud-db-password
+    secrets:
+      - source: 'postgres-passwd'
+        target: 'postgres-passwd'
+      - source: 'nextcloud-db-password'
+        target: 'nextcloud-db-password'
+    command: 
+      - sh
+      - -ec
+      - |
+        PGPASSWORD="$(cat "$$POSTGRES_PASSWORD_FILE")"
+        export PGPASSWORD
+
+        until pg_isready -h postgres.database -U postgres -d postgres; do
+          sleep 1
+        done
+
+        psql -h postgres.database --username postgres --dbname postgres \
+          --set=ON_ERROR_STOP=1 \
+          --set=nextcloud_db_user="$$NEXTCLOUD_DB_USER" \
+          --set=nextcloud_db_password="$(cat "$$NEXTCLOUD_DB_PASSWORD_FILE")" <<'SQL'
+        \set QUIET 1
+        SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'nextcloud_db_user', :'nextcloud_db_password')
+        WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'nextcloud_db_user')
+        \gexec
+        SELECT format('ALTER ROLE %I LOGIN PASSWORD %L', :'nextcloud_db_user', :'nextcloud_db_password')
+        \gexec
+
+        SELECT format('CREATE DATABASE %I OWNER %I', :'nextcloud_db_user', :'nextcloud_db_user')
+        WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = :'nextcloud_db_user')
+        \gexec
+        SELECT format('ALTER DATABASE %I OWNER TO %I', :'nextcloud_db_user', :'nextcloud_db_user')
+        \gexec
+        SQL
+    networks:
+      database: {}
+
+secrets:
+  postgres-passwd:
+    file: '/mnt/MyData/secrets/postgres-passwd.txt'
+  nextcloud-db-password:
+    file: '/mnt/MyData/secrets/nextcloud-db-password.txt'
+  nextcloud-admin-password:
+    file: '/mnt/MyData/secrets/nextcloud-admin-password.txt'
+
+networks:
+  services:
+    external: true
+  database:
+    external: true

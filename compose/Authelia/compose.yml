@@ -9,11 +9,10 @@ services:
       services: {}
       database: {}
     volumes:
-      - 'authelia:/data'
+      - './authelia-data:/data'
     environment:
       TZ: 'Europe/Paris'
       AUTHELIA_SESSION_SECRET_FILE: /run/secrets/authelia_session_secret
-      AUTHELIA_JWT_SECRET_FILE: /run/secrets/authelia_jwt_secret
       AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET_FILE: /run/secrets/authelia_jwt_secret
       AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE: /run/secrets/authelia-encryption-key
       AUTHELIA_STORAGE_POSTGRES_PASSWORD_FILE: /run/secrets/authelia-db-user-password
@@ -154,6 +153,3 @@ secrets:
     file: '/mnt/MyData/secrets/authelia-encryption-key.txt'
   authelia-users-database:
     file: '/mnt/MyData/secrets/authelia-users-database.yml'
-
-volumes:
-  authelia:

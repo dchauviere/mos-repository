@@ -1,7 +1,7 @@
 {
   "name": "Authelia",
   "description": "Authelia is a simple to use and lightweight authentication server.",
-  "icon": "https://raw.githubusercontent.com/authelia/authelia/master/docs/static/svgs/branding/logo.svg",
+  "icon": "https://raw.githubusercontent.com/dchauviere/mos-repository/main/icons/authelia.png",
   "webui": "https://{IP}",
   "category": [ "Authentication" ],
   "readme_url": "https://www.authelia.com/docs/"

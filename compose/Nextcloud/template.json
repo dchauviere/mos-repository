@@ -1,0 +1,8 @@
+{
+  "name": "Nextcloud",
+  "description": "Nextcloud is a suite of client-server applications for file synchronization and sharing.",
+  "icon": "https://raw.githubusercontent.com/dchauviere/mos-repository/main/icons/nextcloud.png",
+  "webui": "https://{IP}",
+  "category": [ "Productivity" ],
+  "readme_url": "https://docs.nextcloud.com/"
+}
